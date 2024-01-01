@@ -8,8 +8,10 @@ import example.post.dto.user.request.SignUpRequest;
 import example.post.dto.user.response.SignUpResponse;
 import example.post.repository.JwtTokenRepository;
 import example.post.repository.UserRepository;
+import example.post.util.JwtAuthenticationFilter;
 import example.post.util.JwtTokenProvider;
 import example.post.util.SecurityUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,20 +57,20 @@ public class UserService {
         return tokenDto;
     }
     @Transactional
-    public TokenDto reissue() {
-        Token tokenDto = findByUserId(SecurityUtil.getCurrentUserId());
-        if (!jwtTokenProvider.validateToken(tokenDto.getRefreshToken())){
+    public TokenDto reissue(HttpServletRequest request) {
+        String refreshToken = jwtTokenProvider.resolveRefreshToken(request);
+        if (!jwtTokenProvider.validateToken(refreshToken)){
             throw new RuntimeException("Refresh Token이 유효하지 않습니다");
         }
-        Authentication authentication = jwtTokenProvider.getAuthentication(tokenDto.getAccessToken());
-        Token refreshToken = findByUserId(Long.valueOf(authentication.getName()));
-        if (!refreshToken.getRefreshToken().equals(tokenDto.getRefreshToken())){
-            throw new RuntimeException("토큰이 일치하지 않습니다");
+        Authentication authentication = jwtTokenProvider.getAuthentication(refreshToken);
+        Token token = findByUserId(Long.valueOf(authentication.getName()));
+        if (!token.getRefreshToken().equals(refreshToken)){
+            throw new RuntimeException("Refresh Token이 일치하지 않습니다");
         }
-        TokenDto token = jwtTokenProvider.generateToken(authentication);
-        Token newToken = refreshToken.updateToken(token);
+        TokenDto tokens = jwtTokenProvider.generateToken(authentication);
+        Token newToken = token.updateToken(tokens);
         jwtTokenRepository.save(newToken);
-        return token;
+        return tokens;
     }
     public Token findByUserId(Long userId){
         return jwtTokenRepository.findByUserId(userId).orElseThrow(() -> new RuntimeException("로그아웃 된 사용자입니다"));

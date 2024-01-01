@@ -7,6 +7,8 @@ import example.post.dto.user.request.SignUpRequest;
 import example.post.dto.user.response.SignInResponse;
 import example.post.dto.user.response.SignUpResponse;
 import example.post.service.UserService;
+import example.post.util.JwtTokenProvider;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api")
 public class UserController {
     private final UserService userService;
+    private final JwtTokenProvider jwtTokenProvider;
     @PostMapping("/signup")
     public SignUpResponse signUp(@RequestBody SignUpRequest signUpRequest){
         User user = userService.signUpUser(signUpRequest);
@@ -30,7 +33,7 @@ public class UserController {
         return userService.signInUser(signInRequest);
     }
     @PostMapping("/reissue")
-    public TokenDto reissue(){
-        return userService.reissue();
+    public TokenDto reissue(HttpServletRequest request){
+        return userService.reissue(request);
     }
 }

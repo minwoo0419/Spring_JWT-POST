@@ -1,7 +1,9 @@
 package example.post.util;
 
 import example.post.dto.token.TokenDto;
+import example.post.repository.UserRepository;
 import io.jsonwebtoken.*;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -12,6 +14,8 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.util.StringUtils;
+
 import java.security.Key;
 import java.util.Arrays;
 import java.util.Base64;
@@ -34,11 +38,13 @@ public class JwtTokenProvider {
         String accessToken = Jwts.builder()
                 .setSubject(authentication.getName())
                 .claim("auth", authorities)
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 30))
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 30))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
         log.info(authentication.getName());
         String refreshToken = Jwts.builder()
+                .setSubject(authentication.getName())
+                .claim("auth", authorities)
                 .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 180))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
@@ -74,11 +80,19 @@ public class JwtTokenProvider {
         }
         return false;
     }
-    private Claims parseClaims(String accessToken){
+    private Claims parseClaims(String token){
         try{
-            return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(accessToken).getBody();
+            return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
         }catch (ExpiredJwtException e){
             return e.getClaims();
         }
+    }
+    public String resolveRefreshToken(HttpServletRequest request){
+        String bearerToken = request.getHeader("ReAuthorization");
+        log.info(bearerToken);
+        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer")){
+            return bearerToken.substring(7);
+        }
+        return null;
     }
 }
