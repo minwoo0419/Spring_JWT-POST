@@ -5,24 +5,20 @@ import example.post.domain.User;
 import example.post.dto.token.TokenDto;
 import example.post.dto.user.request.SignInRequest;
 import example.post.dto.user.request.SignUpRequest;
-import example.post.dto.user.response.SignUpResponse;
 import example.post.repository.JwtTokenRepository;
 import example.post.repository.UserRepository;
-import example.post.util.JwtAuthenticationFilter;
 import example.post.util.JwtTokenProvider;
-import example.post.util.SecurityUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.util.ArrayList;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -32,6 +28,7 @@ public class UserService {
     private final AuthenticationManagerBuilder authenticationManagerBuilder;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
+    String HEADER_STRING = "Bearer ";
     @Transactional
     public User signUpUser(SignUpRequest signUpRequest){
         if (userRepository.existsByName(signUpRequest.getName())){
@@ -41,7 +38,7 @@ public class UserService {
         return userRepository.save(new User(signUpRequest.getName(), encodedPassword));
     }
     @Transactional
-    public TokenDto signInUser(SignInRequest signInRequest){
+    public ResponseEntity<String> signInUser(SignInRequest signInRequest){
         if (!userRepository.existsByName(signInRequest.getName())){
             throw new RuntimeException("존재하지 않는 회원입니다.");
         }
@@ -54,10 +51,13 @@ public class UserService {
         TokenDto tokenDto = jwtTokenProvider.generateToken(authentication);
         Token token = new Token(findByName(signInRequest.getName()).getId(), tokenDto);
         jwtTokenRepository.save(token);
-        return tokenDto;
+        HttpHeaders httpHeaders = new HttpHeaders();
+        httpHeaders.add("Authorization", HEADER_STRING + token.getAccessToken());
+        httpHeaders.add("ReAuthorization", HEADER_STRING + token.getRefreshToken());
+        return ResponseEntity.ok().headers(httpHeaders).body("ok");
     }
     @Transactional
-    public TokenDto reissue(HttpServletRequest request) {
+    public ResponseEntity<String> reissue(HttpServletRequest request) {
         String refreshToken = jwtTokenProvider.resolveRefreshToken(request);
         if (!jwtTokenProvider.validateToken(refreshToken)){
             throw new RuntimeException("Refresh Token이 유효하지 않습니다");
@@ -69,8 +69,10 @@ public class UserService {
         }
         TokenDto tokens = jwtTokenProvider.generateToken(authentication);
         Token newToken = token.updateToken(tokens);
-        jwtTokenRepository.save(newToken);
-        return tokens;
+        HttpHeaders httpHeaders = new HttpHeaders();
+        httpHeaders.add("Authorization", HEADER_STRING + token.getAccessToken());
+        httpHeaders.add("ReAuthorization", HEADER_STRING + token.getRefreshToken());
+        return ResponseEntity.ok().headers(httpHeaders).body("ok");
     }
     public Token findByUserId(Long userId){
         return jwtTokenRepository.findByUserId(userId).orElseThrow(() -> new RuntimeException("로그아웃 된 사용자입니다"));

@@ -35,13 +35,13 @@ public class JwtTokenProvider {
         String authorities = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(","));
+        log.info(authorities);
         String accessToken = Jwts.builder()
                 .setSubject(authentication.getName())
                 .claim("auth", authorities)
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 30))
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 20))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
-        log.info(authentication.getName());
         String refreshToken = Jwts.builder()
                 .setSubject(authentication.getName())
                 .claim("auth", authorities)
@@ -89,7 +89,6 @@ public class JwtTokenProvider {
     }
     public String resolveRefreshToken(HttpServletRequest request){
         String bearerToken = request.getHeader("ReAuthorization");
-        log.info(bearerToken);
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer")){
             return bearerToken.substring(7);
         }
