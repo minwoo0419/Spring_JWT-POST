@@ -20,6 +20,7 @@ public class User {
     private Date createAt;
     private Date updateAt;
     private String authority;
+    private String refreshToken;
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Like> likes = new ArrayList<>();
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
@@ -36,6 +37,10 @@ public class User {
     public User updateUser(String name, String password){
         this.name = name;
         this.password = password;
+        return this;
+    }
+    public User updateToken(String refreshToken){
+        this.refreshToken = refreshToken;
         return this;
     }
 }
